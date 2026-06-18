@@ -1,19 +1,24 @@
 <?php
-/** @var array $projects */
-
-require 'includes/header.php';
+if (!isset($projects)) {
+    header("Location: /Projected/index.php");
+    exit();
+}
+require __DIR__ . '/../includes/header.php';
 ?>
-
-
 
 <div class="project-grid">
 
     <?php foreach ($projects as $project): ?>
 
         <?php
-        $image = (!empty($project['image']) && file_exists($project['image']))
-            ? $project['image']
-            : 'assets/images/missing_image.png';
+        $image = 'assets/images/missing_image.png';
+        if (!empty($project['picture'])) {
+            if (is_string($project['picture']) && file_exists($project['picture'])) {
+                $image = $project['picture'];
+            } else {
+                $image = 'data:image/jpeg;base64,' . base64_encode($project['picture']);
+            }
+        }
         ?>
 
         <a
@@ -23,11 +28,11 @@ require 'includes/header.php';
 
             <img
                 src="<?= $image ?>"
-                alt="<?= $project['title'] ?>"
+                alt="<?= htmlspecialchars($project['title']) ?>"
             >
 
             <div class="project-title">
-                <?= $project['title'] ?>
+                <?= htmlspecialchars($project['title']) ?>
             </div>
 
         </a>
