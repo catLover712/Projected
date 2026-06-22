@@ -1,6 +1,6 @@
 <?php
 
-require_once 'models/ProjectModel.php';
+require_once __DIR__ . '/../models/ProjectModel.php';
 
 class HomeController
 {
@@ -10,6 +10,6 @@ class HomeController
 
         $projects = $projectModel->getAllProjects();
 
-        require 'views/home.php';
+        require __DIR__ . '/../views/home.php';
     }
 }

@@ -1,76 +1,232 @@
 <?php
 
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../models/UserModel.php';
+
 class UserController
 {
+    private UserModel $userModel;
+
+    public function __construct()
+    {
+        global $pdo;
+        $this->userModel = new UserModel($pdo);
+    }
+
+    /* ---------------- REGISTER ---------------- */
+
     public function register()
     {
-        $username = $_POST['username'] ?? null;
-        $email = $_POST['email'] ?? null;
-        $password = $_POST['password'] ?? null;
-        $confirmPassword = $_POST['confirm_password'] ?? null;
+        $username = trim($_POST['username'] ?? '');
+        $email = trim($_POST['email'] ?? '');
+        $password = $_POST['password'] ?? '';
+        $confirmPassword = $_POST['confirm_password'] ?? '';
 
-        if (!$username || !$email || !$password || !$confirmPassword) {
-            die("Fehlende Eingaben");
+        // Required fields
+        if ($username === '' || $email === '' || $password === '' || $confirmPassword === '') {
+            $this->redirect('register', 'missing');
         }
 
+        // Username validation (C6 improvement)
+        if (strlen($username) < 3 || strlen($username) > 15) {
+            $this->redirect('register', 'invalid_username');
+        }
+
+        // Email validation
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 50) {
+            $this->redirect('register', 'invalid_email');
+        }
+
+        // Password validation
+        if (strlen($password) < 6) {
+            $this->redirect('register', 'weak_password');
+        }
+
+        // Password match
         if ($password !== $confirmPassword) {
-            die("Passwörter stimmen nicht überein");
+            $this->redirect('register', 'password_mismatch');
         }
 
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            die("Ungültige E-Mail");
+        // User exists check
+        if ($this->userModel->userExists($username, $email)) {
+            $this->redirect('register', 'already_exists');
         }
 
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
+        $success = $this->userModel->createUser(
+            $username,
+            $email,
+            $hashedPassword
+        );
 
-        echo "Registrierung erfolgreich für: " . htmlspecialchars($username);
+        if ($success) {
+            $this->redirect('login', 'registered', true);
+        }
+
+        $this->redirect('register', 'server');
     }
+
+    /* ---------------- LOGIN ---------------- */
 
     public function login()
     {
-        $email = $_POST['email'] ?? null;
-        $password = $_POST['password'] ?? null;
+        $email = trim($_POST['email'] ?? '');
+        $password = $_POST['password'] ?? '';
 
-        if (!$email || !$password) {
-            die("Fehlende Eingaben");
+        if ($email === '' || $password === '') {
+            $this->redirect('login', 'missing');
         }
 
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            die("Ungültige E-Mail");
+            $this->redirect('login', 'invalid_email');
         }
 
-        // ---- MOCK USER (zum Testen ohne DB) ----
-        $mockUser = [
-            'email' => 'test@test.com',
-            'password' => password_hash('1234', PASSWORD_DEFAULT)
-        ];
+        $user = $this->userModel->getUserByEmail($email);
 
-        if ($email !== $mockUser['email']) {
-            die("User nicht gefunden");
+        if (!$user) {
+            $this->redirect('login', 'not_found');
         }
 
-        if (!password_verify($password, $mockUser['password'])) {
-            die("Falsches Passwort");
+        if (!password_verify($password, $user['password'])) {
+            $this->redirect('login', 'wrong_password');
         }
 
-        session_start();
-        $_SESSION['user'] = $email;
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
 
-        echo "Login erfolgreich!";
+        session_regenerate_id(true);
+
+        $_SESSION['user_id'] = $user['id'];
+
+        header("Location: /Projected/index.php");
+        exit();
+    }
+
+    /* ---------------- UPDATE PROFILE ---------------- */
+
+    public function updateProfile()
+    {
+        $this->ensureSession();
+
+        if (!isset($_SESSION['user_id'])) {
+            $this->redirect('login');
+        }
+
+        $userId = $_SESSION['user_id'];
+        $username = trim($_POST['username'] ?? '');
+        $password = $_POST['password'] ?? '';
+        $confirmPassword = $_POST['confirm_password'] ?? '';
+
+        if ($username === '') {
+            $this->redirect('profile', 'missing_username');
+        }
+
+        if (strlen($username) < 3 || strlen($username) > 15) {
+            $this->redirect('profile', 'invalid_username');
+        }
+
+        if ($this->userModel->usernameExistsForOther($username, $userId)) {
+            $this->redirect('profile', 'username_taken');
+        }
+
+        $hashedPassword = null;
+
+        if (!empty($password)) {
+
+            if (strlen($password) < 6) {
+                $this->redirect('profile', 'weak_password');
+            }
+
+            if ($password !== $confirmPassword) {
+                $this->redirect('profile', 'password_mismatch');
+            }
+
+            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+        }
+
+        $success = $this->userModel->updateUser($userId, $username, $hashedPassword);
+
+        if ($success) {
+            $this->redirect('profile', 'updated', true);
+        }
+
+        $this->redirect('profile', 'server');
+    }
+
+    /* ---------------- DELETE PROFILE ---------------- */
+
+    public function deleteProfile()
+    {
+        $this->ensureSession();
+
+        if (!isset($_SESSION['user_id'])) {
+            $this->redirect('login');
+        }
+
+        $userId = $_SESSION['user_id'];
+
+        $success = $this->userModel->deleteUser($userId);
+
+        if ($success) {
+            session_destroy();
+            header("Location: /Projected/index.php");
+            exit();
+        }
+
+        $this->redirect('profile', 'server');
+    }
+
+    /* ---------------- HELPERS ---------------- */
+
+    private function ensureSession(): void
+    {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+    }
+
+    private function redirect(string $page, ?string $error = null, bool $success = false): void
+    {
+        $base = "/Projected/views/$page.php";
+
+        if ($success) {
+            header("Location: $base?success=$error");
+        } else {
+            header("Location: $base?error=$error");
+        }
+
+        exit();
     }
 }
 
+/* ---------------- ENTRY POINT ---------------- */
 
 $controller = new UserController();
 
+/* LOGOUT */
+if (isset($_GET['logout'])) {
+    session_start();
+    session_destroy();
+
+    header("Location: /Projected/index.php");
+    exit();
+}
+
+/* DELETE PROFILE */
+if (isset($_GET['delete_profile'])) {
+    $controller->deleteProfile();
+}
+
+/* POST ROUTING */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-    if (isset($_POST['username'])) {
+    if (isset($_POST['action']) && $_POST['action'] === 'update_profile') {
+        $controller->updateProfile();
+    } elseif (isset($_POST['username'])) {
         $controller->register();
-    } 
-
-    else {
+    } else {
         $controller->login();
     }
 }
