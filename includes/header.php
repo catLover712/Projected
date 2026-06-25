@@ -33,26 +33,26 @@ if (session_status() === PHP_SESSION_NONE) {
 
         <?php if (isset($_SESSION['user_id'])): ?>
 
-            <a href="/Projected/index.php?page=project&action=create">
-                <button type="button" class="btn auth-btn">Create Project</button>
+            <a href="/Projected/index.php?page=project&action=create" class="btn auth-btn">
+                Create Project
             </a>
 
-            <a href="/Projected/views/profile.php">
-                <button type="button" class="btn auth-btn">Edit Profile</button>
+            <a href="/Projected/views/profile.php" class="btn auth-btn">
+                Edit Profile
             </a>
 
-            <a href="/Projected/controllers/UserController.php?logout=1">
-                <button type="button" class="btn auth-btn">Logout</button>
+            <a href="/Projected/controllers/UserController.php?logout=1" class="btn auth-btn">
+                Logout
             </a>
 
         <?php else: ?>
 
-            <a href="/Projected/views/login.php">
-                <button type="button" class="btn auth-btn">Login</button>
+            <a href="/Projected/views/login.php" class="btn auth-btn">
+                Login
             </a>
 
-            <a href="/Projected/views/register.php">
-                <button type="button" class="btn auth-btn">Register</button>
+            <a href="/Projected/views/register.php" class="btn auth-btn">
+                Register
             </a>
 
         <?php endif; ?>

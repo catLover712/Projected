@@ -2,8 +2,8 @@
 
 $host = "localhost";
 $dbname = "projected";
-$user = "root";
-$password = "";
+$user = "projected_user";
+$password = "Projected123!";
 
 try {
     $pdo = new PDO(

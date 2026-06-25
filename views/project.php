@@ -6,6 +6,17 @@ if (!isset($project)) {
     exit();
 }
 
+$errors = [
+    'invalid_title'       => 'Title must be between 3 and 45 characters.',
+    'description_too_long'=> 'Description cannot exceed 300 characters.',
+    'file_too_large'      => 'File size cannot exceed 2 MB.',
+    'invalid_file_type'   => 'Only JPG, PNG, and GIF images are allowed.',
+];
+
+$errorMsg = isset($_GET['error'])
+    ? ($errors[$_GET['error']] ?? 'An error occurred.')
+    : null;
+
 require 'includes/header.php';
 ?>
 
@@ -79,6 +90,7 @@ $editMode = isset($_GET['edit']) && $_GET['edit'] == 1;
                                 name="title"
                                 value="<?= htmlspecialchars($project['title']) ?>"
                                 required
+                                minlength="3"
                                 maxlength="45"
                                 class="edit-input"
                             >
@@ -89,6 +101,7 @@ $editMode = isset($_GET['edit']) && $_GET['edit'] == 1;
                             <textarea
                                 id="description"
                                 name="description"
+                                maxlength="300"
                                 class="edit-textarea"
                                 style="resize: none;"
                             ><?= htmlspecialchars($project['description'] ?? '') ?></textarea>
@@ -149,6 +162,16 @@ $editMode = isset($_GET['edit']) && $_GET['edit'] == 1;
         </div>
     </div>
 
+    <?php if ($errorMsg): ?>
+        <div id="toast" class="toast toast-error">
+            <span class="toast-icon">✕</span>
+            <span class="toast-msg">
+                <?= htmlspecialchars($errorMsg) ?>
+            </span>
+            <button class="toast-close" onclick="dismissToast()">×</button>
+        </div>
+    <?php endif; ?>
+
     <script>
     function previewImage(event) {
         const reader = new FileReader();
@@ -177,6 +200,25 @@ $editMode = isset($_GET['edit']) && $_GET['edit'] == 1;
             modal.style.display = 'none';
         }, 150);
     }
+
+    (function() {
+        const toast = document.getElementById('toast');
+        if (!toast) return;
+
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => toast.classList.add('show'));
+        });
+
+        const timer = setTimeout(dismissToast, 5000);
+
+        function dismissToast() {
+            clearTimeout(timer);
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 400);
+        }
+
+        window.dismissToast = dismissToast;
+    })();
     </script>
 
 <?php else: ?>
