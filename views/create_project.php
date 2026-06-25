@@ -7,6 +7,19 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
+$errors = [
+    'missing_title'       => 'Title is required.',
+    'invalid_title'       => 'Title must be between 3 and 45 characters.',
+    'description_too_long'=> 'Description cannot exceed 300 characters.',
+    'file_too_large'      => 'File size cannot exceed 2 MB.',
+    'invalid_file_type'   => 'Only JPG, PNG, and GIF images are allowed.',
+    'server'              => 'Something went wrong. Please try again.',
+];
+
+$errorMsg = isset($_GET['error'])
+    ? ($errors[$_GET['error']] ?? 'An error occurred.')
+    : null;
+
 require 'includes/header.php';
 ?>
 
@@ -40,8 +53,9 @@ require 'includes/header.php';
                         id="title"
                         name="title"
                         required
+                        minlength="3"
                         maxlength="45"
-                        placeholder="Enter project title (max 45 chars)"
+                        placeholder="Enter project title (min 3, max 45 chars)"
                         class="edit-input"
                     >
                 </div>
@@ -53,6 +67,7 @@ require 'includes/header.php';
                     <textarea
                         id="description"
                         name="description"
+                        maxlength="300"
                         placeholder="Describe your project..."
                         class="edit-textarea"
                         style="resize: none;"
@@ -86,6 +101,16 @@ require 'includes/header.php';
 
 </div>
 
+<?php if ($errorMsg): ?>
+    <div id="toast" class="toast toast-error">
+        <span class="toast-icon">✕</span>
+        <span class="toast-msg">
+            <?= htmlspecialchars($errorMsg) ?>
+        </span>
+        <button class="toast-close" onclick="dismissToast()">×</button>
+    </div>
+<?php endif; ?>
+
 <script>
 function previewImage(event) {
     const reader = new FileReader();
@@ -97,4 +122,23 @@ function previewImage(event) {
         reader.readAsDataURL(event.target.files[0]);
     }
 }
+
+(function() {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
+
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => toast.classList.add('show'));
+    });
+
+    const timer = setTimeout(dismissToast, 5000);
+
+    function dismissToast() {
+        clearTimeout(timer);
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 400);
+    }
+
+    window.dismissToast = dismissToast;
+})();
 </script>

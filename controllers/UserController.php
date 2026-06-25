@@ -13,31 +13,43 @@ class UserController
         $this->userModel = new UserModel($pdo);
     }
 
+    /* ---------------- REGISTER ---------------- */
+
     public function register()
     {
-        $username = $_POST['username'] ?? null;
-        $email = $_POST['email'] ?? null;
-        $password = $_POST['password'] ?? null;
-        $confirmPassword = $_POST['confirm_password'] ?? null;
+        $username = trim($_POST['username'] ?? '');
+        $email = trim($_POST['email'] ?? '');
+        $password = $_POST['password'] ?? '';
+        $confirmPassword = $_POST['confirm_password'] ?? '';
 
-        if (!$username || !$email || !$password || !$confirmPassword) {
-            header("Location: /Projected/views/register.php?error=missing");
-            exit();
+        // Required fields
+        if ($username === '' || $email === '' || $password === '' || $confirmPassword === '') {
+            $this->redirect('register', 'missing');
         }
 
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            header("Location: /Projected/views/register.php?error=invalid_email");
-            exit();
+        // Username validation (C6 improvement)
+        if (strlen($username) < 3 || strlen($username) > 15) {
+            $this->redirect('register', 'invalid_username');
         }
 
+        // Email validation
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 50) {
+            $this->redirect('register', 'invalid_email');
+        }
+
+        // Password validation
+        if (strlen($password) < 6) {
+            $this->redirect('register', 'weak_password');
+        }
+
+        // Password match
         if ($password !== $confirmPassword) {
-            header("Location: /Projected/views/register.php?error=password_mismatch");
-            exit();
+            $this->redirect('register', 'password_mismatch');
         }
 
+        // User exists check
         if ($this->userModel->userExists($username, $email)) {
-            header("Location: /Projected/views/register.php?error=already_exists");
-            exit();
+            $this->redirect('register', 'already_exists');
         }
 
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
@@ -49,102 +61,108 @@ class UserController
         );
 
         if ($success) {
-            header("Location: /Projected/views/login.php?success=registered");
-            exit();
+            $this->redirect('login', 'registered', true);
         }
 
-        header("Location: /Projected/views/register.php?error=server");
-        exit();
+        $this->redirect('register', 'server');
     }
+
+    /* ---------------- LOGIN ---------------- */
 
     public function login()
     {
-        $email = $_POST['email'] ?? null;
-        $password = $_POST['password'] ?? null;
+        $email = trim($_POST['email'] ?? '');
+        $password = $_POST['password'] ?? '';
 
-        if (!$email || !$password) {
-            header("Location: /Projected/views/login.php?error=missing");
-            exit();
+        if ($email === '' || $password === '') {
+            $this->redirect('login', 'missing');
         }
 
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            header("Location: /Projected/views/login.php?error=invalid_email");
-            exit();
+            $this->redirect('login', 'invalid_email');
         }
 
         $user = $this->userModel->getUserByEmail($email);
 
         if (!$user) {
-            header("Location: /Projected/views/login.php?error=not_found");
-            exit();
+            $this->redirect('login', 'not_found');
         }
 
         if (!password_verify($password, $user['password'])) {
-            header("Location: /Projected/views/login.php?error=wrong_password");
-            exit();
+            $this->redirect('login', 'wrong_password');
         }
 
-        session_start();
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        session_regenerate_id(true);
+
         $_SESSION['user_id'] = $user['id'];
 
         header("Location: /Projected/index.php");
         exit();
     }
 
+    /* ---------------- UPDATE PROFILE ---------------- */
+
     public function updateProfile()
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
+        $this->ensureSession();
 
         if (!isset($_SESSION['user_id'])) {
-            header("Location: /Projected/views/login.php");
-            exit();
+            $this->redirect('login');
         }
 
         $userId = $_SESSION['user_id'];
-        $username = $_POST['username'] ?? null;
-        $password = $_POST['password'] ?? null;
-        $confirmPassword = $_POST['confirm_password'] ?? null;
+        $username = trim($_POST['username'] ?? '');
+        $password = $_POST['password'] ?? '';
+        $confirmPassword = $_POST['confirm_password'] ?? '';
 
-        if (!$username) {
-            header("Location: /Projected/views/profile.php?error=missing_username");
-            exit();
+        if ($username === '') {
+            $this->redirect('profile', 'missing_username');
+        }
+
+        if (strlen($username) < 3 || strlen($username) > 15) {
+            $this->redirect('profile', 'invalid_username');
         }
 
         if ($this->userModel->usernameExistsForOther($username, $userId)) {
-            header("Location: /Projected/views/profile.php?error=username_taken");
-            exit();
+            $this->redirect('profile', 'username_taken');
         }
 
         $hashedPassword = null;
+
         if (!empty($password)) {
-            if ($password !== $confirmPassword) {
-                header("Location: /Projected/views/profile.php?error=password_mismatch");
-                exit();
+
+            if (strlen($password) < 6) {
+                $this->redirect('profile', 'weak_password');
             }
+
+            if ($password !== $confirmPassword) {
+                $this->redirect('profile', 'password_mismatch');
+            }
+
             $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
         }
 
         $success = $this->userModel->updateUser($userId, $username, $hashedPassword);
 
         if ($success) {
-            header("Location: /Projected/views/profile.php?success=updated");
-            exit();
+            $this->redirect('profile', 'updated', true);
         }
 
-        header("Location: /Projected/views/profile.php?error=server");
-        exit();
+        $this->redirect('profile', 'server');
     }
+
+    /* ---------------- DELETE PROFILE ---------------- */
 
     public function deleteProfile()
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
+        $this->ensureSession();
 
         if (!isset($_SESSION['user_id'])) {
-            die("Nicht eingeloggt.");
+            $this->redirect('login');
         }
 
         $userId = $_SESSION['user_id'];
@@ -157,17 +175,38 @@ class UserController
             exit();
         }
 
-        die("Fehler beim Löschen des Profils.");
+        $this->redirect('profile', 'server');
+    }
+
+    /* ---------------- HELPERS ---------------- */
+
+    private function ensureSession(): void
+    {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+    }
+
+    private function redirect(string $page, ?string $error = null, bool $success = false): void
+    {
+        $base = "/Projected/views/$page.php";
+
+        if ($success) {
+            header("Location: $base?success=$error");
+        } else {
+            header("Location: $base?error=$error");
+        }
+
+        exit();
     }
 }
 
-/* -------- ENTRY POINT -------- */
+/* ---------------- ENTRY POINT ---------------- */
 
 $controller = new UserController();
 
-/* LOGOUT (GET REQUEST) */
+/* LOGOUT */
 if (isset($_GET['logout'])) {
-
     session_start();
     session_destroy();
 
@@ -175,12 +214,12 @@ if (isset($_GET['logout'])) {
     exit();
 }
 
-/* DELETE PROFILE (GET REQUEST) */
+/* DELETE PROFILE */
 if (isset($_GET['delete_profile'])) {
     $controller->deleteProfile();
 }
 
-/* LOGIN / REGISTER / UPDATE (POST REQUEST) */
+/* POST ROUTING */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (isset($_POST['action']) && $_POST['action'] === 'update_profile') {

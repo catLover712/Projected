@@ -22,7 +22,9 @@ if (!$user) {
 
 $errors = [
     'missing_username' => 'Username cannot be empty.',
+    'invalid_username' => 'Username must be between 3 and 15 characters.',
     'username_taken'   => 'That username is already taken.',
+    'weak_password'    => 'Password must be at least 6 characters long.',
     'password_mismatch'=> 'Passwords do not match.',
     'server'           => 'Something went wrong. Please try again.',
 ];
@@ -51,7 +53,7 @@ require __DIR__ . '/../includes/header.php';
 
                 <div style="margin-bottom: 15px;">
                     <label for="username" style="color: #124212; font-weight: bold;">Username *</label><br />
-                    <input type="text" id="username" name="username" value="<?= htmlspecialchars($user['username']) ?>" maxlength="15" required style="width: 100%; padding: 10px; border-radius: 3px; border: 1px solid #ccc;" />
+                    <input type="text" id="username" name="username" value="<?= htmlspecialchars($user['username']) ?>" minlength="3" maxlength="15" required style="width: 100%; padding: 10px; border-radius: 3px; border: 1px solid #ccc;" />
                 </div>
 
                 <div style="margin-bottom: 15px;">
@@ -62,12 +64,12 @@ require __DIR__ . '/../includes/header.php';
 
                 <div style="margin-bottom: 15px;">
                     <label for="password" style="color: #124212; font-weight: bold;">New Password (optional)</label><br />
-                    <input type="password" id="password" name="password" placeholder="Leave empty to keep current" style="width: 100%; padding: 10px; border-radius: 3px; border: 1px solid #ccc;" />
+                    <input type="password" id="password" name="password" minlength="6" placeholder="Leave empty to keep current" style="width: 100%; padding: 10px; border-radius: 3px; border: 1px solid #ccc;" />
                 </div>
 
                 <div style="margin-bottom: 20px;">
                     <label for="confirm_password" style="color: #124212; font-weight: bold;">Confirm New Password</label><br />
-                    <input type="password" id="confirm_password" name="confirm_password" placeholder="Confirm new password" style="width: 100%; padding: 10px; border-radius: 3px; border: 1px solid #ccc;" />
+                    <input type="password" id="confirm_password" name="confirm_password" minlength="6" placeholder="Confirm new password" style="width: 100%; padding: 10px; border-radius: 3px; border: 1px solid #ccc;" />
                 </div>
 
             </div>
